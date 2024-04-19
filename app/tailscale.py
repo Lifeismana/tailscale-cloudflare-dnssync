@@ -9,7 +9,7 @@ from termcolor import colored
 def getTailscaleDevice(apikey, clientid, clientsecret, tailnet):
     if clientid and clientsecret:
         token = OAuth2Session(client=BackendApplicationClient(client_id=clientid)).fetch_token(token_url='https://api.tailscale.com/api/v2/oauth/token', client_id=clientid, client_secret=clientsecret)
-        apikey = token.access_token
+        apikey = token["access_token"]
     url = "https://api.tailscale.com/api/v2/tailnet/{tailnet}/devices".format(tailnet=tailnet)
     payload={}
     headers = {
