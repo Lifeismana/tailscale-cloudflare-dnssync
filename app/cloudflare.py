@@ -53,7 +53,7 @@ def createDNSRecord(token, domain, name, type, content, subdomain=None, zoneId=F
         fqdn = name+"."+subdomain+"."+domain
     else:
         fqdn = name+"."+domain
-        
+
     payload={
         'type': type,
         'name': fqdn,

@@ -39,7 +39,7 @@ def importkey(name, optional=False):
                 if optional:
                     return ""
                 cprint("ERROR: mandatory configuration not found: {}".format(key), "red")
-    
+
 def getConfig():
     # static = {
     #     'cf-key': '',

@@ -9,6 +9,18 @@ from tailscale import getTailscaleDevice, isTailscaleIP
 from config import getConfig
 
 import sys
+import signal
+import threading
+
+class GracefulExit:
+    def __init__(self):
+        self.kill_now = threading.Event()
+        signal.signal(signal.SIGINT, self.exit_gracefully)
+        signal.signal(signal.SIGTERM, self.exit_gracefully)
+
+    def exit_gracefully(self, signum, frame):
+        print("Stopping...")
+        self.kill_now.set()
 
 def main():
     config = getConfig()
@@ -32,7 +44,7 @@ def main():
     cprint("Adding new devices:", "blue")
 
     # Check if current hosts already have records:
-    for ts_rec in ts_records: 
+    for ts_rec in ts_records:
         #if ts_rec['hostname'] in cf_recordes['name']:
         if config.get("cf-sub"):
             sub = "." + config.get("cf-sub").lower()
@@ -54,11 +66,11 @@ def main():
     cprint("Cleaning up old records:", "blue")
     # Check for old records:
     cf_recordes = getZoneRecords(config['cf-key'], config['cf-domain'])
-    
+
     # set tailscale hostnames to lower cause dns is
     for i in range(len(ts_records)):
         ts_records[i]['hostname'] = ts_records[i]['hostname'].lower()
-        
+
 
     for cf_rec in cf_recordes:
         if config.get('cf-sub'):
@@ -93,4 +105,18 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    if (len(sys.argv) > 1):
+        if (sys.argv[1] == "--repeat"):
+            every = 300
+            if (len(sys.argv) > 2):
+                every = int(sys.argv[2])
+            killer = GracefulExit()
+            while True:
+                main()
+                if killer.kill_now.wait(every):
+                    break
+        else:
+            print("Unrecognized parameter '" +
+                    sys.argv[1] + "'. Stopping now.")
+    else:
+        main()
