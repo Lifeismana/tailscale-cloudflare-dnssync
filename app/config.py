@@ -53,7 +53,7 @@ def getConfig():
         static[key] = importkey(key)
     for key in keysOptional:
         static[key] = importkey(key, True)
-    if not static['ts-key'] or (not static['ts-clientid'] and not static['ts-clientsecret']):
+    if not static['ts-key'] and not (static['ts-clientid'] and static['ts-clientsecret']):
         cprint("ERROR: mandatory tailscale configuration not found: ts-key or ts-clientid/ts-clientsecret missing", "red")
         exit(1)
     return static
