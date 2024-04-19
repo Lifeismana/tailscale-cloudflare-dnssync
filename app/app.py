@@ -9,6 +9,18 @@ from tailscale import getTailscaleDevice, isTailscaleIP
 from config import getConfig
 
 import sys
+import signal
+import threading
+
+class GracefulExit:
+    def __init__(self):
+        self.kill_now = threading.Event()
+        signal.signal(signal.SIGINT, self.exit_gracefully)
+        signal.signal(signal.SIGTERM, self.exit_gracefully)
+
+    def exit_gracefully(self, signum, frame):
+        print("Stopping...")
+        self.kill_now.set()
 
 def main():
     config = getConfig()
@@ -85,4 +97,19 @@ def main():
 
 
 if __name__ == '__main__':
+    if (len(sys.argv) > 1):
+        if (sys.argv[1] == "--repeat"):
+            every = 15
+            if (len(sys.argv) > 2):
+                every = int(sys.argv[2])
+            killer = GracefulExit()
+            while True:
+                main()
+                if killer.kill_now.wait(every):
+                    break
+        else:
+            print("Unrecognized parameter '" +
+                    sys.argv[1] + "'. Stopping now.")
+    else:
+        print(main())
     main()
