@@ -99,7 +99,7 @@ def main():
 if __name__ == '__main__':
     if (len(sys.argv) > 1):
         if (sys.argv[1] == "--repeat"):
-            every = 15
+            every = 300
             if (len(sys.argv) > 2):
                 every = int(sys.argv[2])
             killer = GracefulExit()
