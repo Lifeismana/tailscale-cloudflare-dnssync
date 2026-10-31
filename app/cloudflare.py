@@ -1,13 +1,16 @@
-import requests, json, re
+import json
+import re
+import sys
 
-from termcolor import cprint, colored
-from requests.models import Response
+import requests
+from termcolor import colored, cprint
+
 
 def getZoneId(token, domain):
     url = "https://api.cloudflare.com/client/v4/zones"
     payload={}
     headers = {
-    'Authorization': "Bearer {}".format(token)
+    'Authorization': f"Bearer {token}"
     }
     response = requests.request("GET", url, headers=headers, data=payload)
     data = json.loads(response.text)
@@ -16,18 +19,18 @@ def getZoneId(token, domain):
         for zone in data['result']:
             if zone['name'] == domain:
                 return zone['id']
+        raise ValueError(f"Cloudflare zone not found for domain: {domain}")
     else:
-        exit(colored('getZoneId(): '+json.dumps(data['errors'], indent=2), "red"))
+        sys.exit(colored('getZoneId(): '+json.dumps(data['errors'], indent=2), "red"))
 
 
-def getZoneRecords(token, domain, hostname=False, zoneId=False):
-    if zoneId != False:
-        url = "https://api.cloudflare.com/client/v4/zones/{zone_identifier}/dns_records?per_page=150".format(zone_identifier=zoneId)
-    else:
-        url = "https://api.cloudflare.com/client/v4/zones/{zone_identifier}/dns_records?per_page=150".format(zone_identifier=getZoneId(token, domain))
+def getZoneRecords(token, domain, hostname=False, zoneId: str | None = None):
+    if not zoneId:
+        zoneId = getZoneId(token, domain)
+    url = f"https://api.cloudflare.com/client/v4/zones/{zoneId}/dns_records?per_page=150"
     payload={}
     headers = {
-    'Authorization': "Bearer {}".format(token)
+    'Authorization': f"Bearer {token}"
     }
 
     response = requests.request("GET", url, headers=headers, data=payload)
@@ -42,13 +45,13 @@ def getZoneRecords(token, domain, hostname=False, zoneId=False):
                 output.append(record)
         return output
     else:
-        exit(colored("getZoneRecords() - error\n{}".format(json.dumps(data['errors'], indent=2)), "red"))
+        sys.exit(colored("getZoneRecords() - error\n{}".format(json.dumps(data['errors'], indent=2)), "red"))
 
 def createDNSRecord(token, domain, name, type, content, subdomain=None, zoneId=False, priority=False, ttl=120):
     if zoneId != False:
-        url = "https://api.cloudflare.com/client/v4/zones/{zone_identifier}/dns_records".format(zone_identifier=zoneId)
+        url = f"https://api.cloudflare.com/client/v4/zones/{zoneId}/dns_records"
     else:
-        url = "https://api.cloudflare.com/client/v4/zones/{zone_identifier}/dns_records".format(zone_identifier=getZoneId(token, domain))
+        url = f"https://api.cloudflare.com/client/v4/zones/{getZoneId(token, domain)}/dns_records"
     if subdomain:
         fqdn = name+"."+subdomain+"."+domain
     else:
@@ -61,7 +64,7 @@ def createDNSRecord(token, domain, name, type, content, subdomain=None, zoneId=F
         'ttl': ttl
     }
     headers = {
-        'Authorization': "Bearer {}".format(token)
+        'Authorization': f"Bearer {token}"
     }
 
     response = requests.request("POST", url, headers=headers, data=json.dumps(payload))
@@ -72,22 +75,22 @@ def createDNSRecord(token, domain, name, type, content, subdomain=None, zoneId=F
         return True
     else:
         cprint("[ERROR]", 'red')
-        exit("createDNSRecord():  "+json.dumps(data['errors'], indent=2))
+        sys.exit("createDNSRecord():  "+json.dumps(data['errors'], indent=2))
 
 def deleteDNSRecord(token, domain, id, zoneId=False):
     if zoneId != False:
-        url = "https://api.cloudflare.com/client/v4/zones/{zone_identifier}/dns_records/{identifier}".format(zone_identifier=zoneId, identifier=id)
+        url = f"https://api.cloudflare.com/client/v4/zones/{zoneId}/dns_records/{id}"
     else:
-        url = "https://api.cloudflare.com/client/v4/zones/{zone_identifier}/dns_records/{identifier}".format(zone_identifier=getZoneId(token, domain), identifier=id)
+        url = f"https://api.cloudflare.com/client/v4/zones/{getZoneId(token, domain)}/dns_records/{id}"
     headers = {
-        'Authorization': "Bearer {}".format(token)
+        'Authorization': f"Bearer {token}"
     }
     response = requests.request("DELETE", url, headers=headers)
     data = json.loads(response.text)
     print("--> [CLOUDFLARE] [{code}] {msg}".format(code=response.status_code, msg=colored('record deleted', "green")))
 
 def isValidDNSRecord(name):
-    regex = "^([a-zA-Z]|\d|-|\.)*$"
+    regex = r"^([a-zA-Z]|\d|-|\.)*$"
     return re.match(regex, name)
 
 

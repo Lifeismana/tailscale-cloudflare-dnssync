@@ -1,6 +1,7 @@
-import configparser, os
-import os.path
-from sys import path
+import configparser
+import os
+from sys import exit
+
 from termcolor import cprint
 
 keysToImport = ['cf-key', 'cf-domain', 'ts-tailnet']
@@ -11,34 +12,27 @@ def importkey(name, optional=False):
     envKey = key.replace("-", "_")
 
     secretPath = "/run/secrets/"+key
-    if (os.path.isfile(secretPath)):
-        secret = open(secretPath, "r")
-        out = "{}".format(secret.readline().strip())
-        return out
-    elif (key in os.environ):
+    if os.path.isfile(secretPath):
+        with open(secretPath, "r", encoding="utf-8") as secret:
+            return secret.readline().strip()
+    if (key in os.environ):
         return os.environ.get(key)
-    elif (envKey in os.environ):
+    if (envKey in os.environ):
         return os.environ.get(envKey)
-    else:
-        try:
-            cfgPath = os.path.dirname(os.path.realpath(__file__))+'/config.ini'
-            with open(cfgPath, 'r') as file:
-                config = configparser.ConfigParser()
-                config.read(cfgPath)
-                cfg=config['DEFAULT']
-        except Exception as e:
-            print(e)
-            if optional:
-                return ""
-            exit('could not read config file')
-        finally:
-            try:
-                out = cfg[key]
-                return out
-            except:
-                if optional:
-                    return ""
-                cprint("ERROR: mandatory configuration not found: {}".format(key), "red")
+
+    cfgPath = os.path.dirname(os.path.realpath(__file__))+'/config.ini'
+    try:
+        with open(cfgPath, 'r') as file:
+            config = configparser.ConfigParser()
+            config.read_file(file)
+            return config['DEFAULT'][key]
+    except (OSError, configparser.Error, KeyError) as e:
+        print(e)
+        if optional:
+            return ""
+        cprint(f"ERROR: mandatory configuration not found: {key}", "red")
+        exit('could not read config file')
+
 
 def getConfig():
     # static = {
@@ -61,8 +55,7 @@ def getConfig():
             cprint("ERROR: mandatory tailscale configuration not found: ts-key or ts-client-id/ts-client-secret missing", "red")
             exit(1)
     # check for headscale Config
-    if static['mode'] == "headscale":
-        if not (static['hs-baseurl'] and static['hs-apikey']):
+    if static['mode'] == "headscale" and not (static['hs-baseurl'] and static['hs-apikey']):
             cprint("ERROR: mandatory headscale configuration not found: hs-baseurl and/or hs-apikey missing", "red")
             exit(1)
     # unkown mode unfigured

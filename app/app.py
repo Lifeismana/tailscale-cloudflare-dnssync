@@ -1,16 +1,19 @@
 import ipaddress
-import json
+import signal
+import sys
+import threading
 
-from requests.api import delete
+from cloudflare import (
+    createDNSRecord,
+    deleteDNSRecord,
+    getZoneId,
+    getZoneRecords,
+    isValidDNSRecord,
+)
+from config import getConfig
+from tailscale import getTailscaleDevice, isTailscaleIP
 from termcolor import colored, cprint
 
-from cloudflare import createDNSRecord, deleteDNSRecord, getZoneRecords, isValidDNSRecord, getZoneId
-from tailscale import getTailscaleDevice, isTailscaleIP
-from config import getConfig
-
-import sys
-import signal
-import threading
 
 class GracefulExit:
     def __init__(self):
@@ -27,6 +30,7 @@ def main():
     cf_ZoneId = getZoneId(config['cf-key'], config['cf-domain'])
     cf_recordes = getZoneRecords(config['cf-key'], config['cf-domain'], zoneId=cf_ZoneId)
 
+    ts_records = []
     # Get records depeneding on mode
     if config['mode'] == "tailscale":
         ts_records = getTailscaleDevice(config['ts-key'], config['ts-client-id'], config['ts-client-secret'], config['ts-tailnet'])
@@ -46,8 +50,8 @@ def main():
     # Check if current hosts already have records:
     for ts_rec in ts_records:
         #if ts_rec['hostname'] in cf_recordes['name']:
-        if config.get("cf-sub"):
-            sub = "." + config.get("cf-sub").lower()
+        if cf_sub := config.get("cf-sub"):
+            sub = "." + cf_sub.lower()
         else:
             sub = ""
         tsfqdn = ts_rec['hostname'].lower()+sub+"."+config['cf-domain']
@@ -68,13 +72,13 @@ def main():
     cf_recordes = getZoneRecords(config['cf-key'], config['cf-domain'])
 
     # set tailscale hostnames to lower cause dns is
-    for i in range(len(ts_records)):
-        ts_records[i]['hostname'] = ts_records[i]['hostname'].lower()
+    for record in ts_records:
+        record["hostname"] = record["hostname"].lower()
 
 
     for cf_rec in cf_recordes:
-        if config.get('cf-sub'):
-            sub = '.' + config.get('cf-sub').lower()
+        if cf_sub := config.get("cf-sub"):
+            sub = '.' + cf_sub.lower()
         else: sub = ""
         cf_name = cf_rec['name'].rsplit(sub + '.' + config['cf-domain'], 1)[0]
 
